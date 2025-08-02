@@ -5,10 +5,8 @@ from os.path import join
 configfile: "config/config.yaml"
 report: "workflow.rst"
 
-# conda: "envs/environment.yaml"
-
-rawdir = join(config["datadir"])
-outdir = join(config["datadir"], "derivatives")
+rawdir = join(config["datadir"]) # the directory with data to be processed
+outdir = join(config["datadir"], "derivatives") # the directory where derivatives are to be stored
 
 environmentdir = join(config["rootdir"], "envs")
 resourcedir = join(config["rootdir"], "resources")
@@ -18,22 +16,9 @@ workflowdir = join(config["rootdir"], "workflow")
 # Create the results directory if it doesn't exist already
 os.makedirs(outdir, exist_ok=True)
 
+# Specifies the files which should exist at the end of the processing
 endfiles = [
-    # os.path.join(outdir, "python", "sub-{subid}", "sub-{subid}_static_FC.csv"),
-    # os.path.join(outdir, "python", "sub-{subid}", "sub-{subid}_FCD.csv"),
-    # os.path.join(
-    #     outdir, "python", "sub-{subid}", "sub-{subid}_FCD_histogram_counts.csv"
-    # ),
-    # os.path.join(
-    #     outdir, "python", "sub-{subid}", "figs", "sub-{subid}_FCD_histogram.png"
-    # ),
-    # os.path.join(
-    #     outdir,
-    #     "wb_command",
-    #     "sub-{subid}",
-    #     "sub-{subid}_task-rest_boldmap.pconn.nii",
-    # ),
-
+    # In this case, it is the average time series for each of the ROIs, and the FC matrix
     os.path.join(
         outdir,
         "xcp_d",
@@ -50,8 +35,10 @@ endfiles = [
     )
 ]
 
-subids = [i[4:] for i in os.listdir(os.path.join(rawdir, "derivatives", "fmriprep", "sourcedata", "freesurfer")) if i.startswith("sub-") and not i.startswith("sub-RS") and not i.startswith("sub-LENMDA")]
-# subids = ["LEGK010"]
+# Define the subject IDs to be processed
+subids = ["LEGK010"]
+# E.g. this should select all the subject IDs present in your BIDS directory
+# subids = [i[4:] for i in os.listdir(rawdir) if i.startswith('sub-')]
 
 
 rule all:
@@ -61,105 +48,109 @@ rule all:
     input:
         expand(endfiles, subid=subids)
 
+# Apply fMRIPrep preprocessing pipeline to the data
+# https://fmriprep.org/en/stable/
+rule fmriprep:
+    input:
+        os.path.join(rawdir, "sub-{subid}", "anat", "sub-{subid}_T1w.nii.gz"),
+        os.path.join(rawdir, "sub-{subid}", "anat", "sub-{subid}_T2w.nii.gz"), # comment out if your data does not contain T2
+        os.path.join(rawdir, "sub-{subid}", "fmap", "sub-{subid}_magnitude1.nii.gz"),
+        os.path.join(rawdir, "sub-{subid}", "fmap", "sub-{subid}_magnitude2.nii.gz"),
+        os.path.join(rawdir, "sub-{subid}", "fmap", "sub-{subid}_phasediff.nii.gz"),
+        os.path.join(
+            rawdir,
+            "sub-{subid}",
+            "func",
+            "sub-{subid}_task-rest_bold.nii.gz"
+        )
+    params:
+        bids_dir=rawdir,
+        out_dir=outdir,
+        fs_license_dir=resourcedir
+    threads: 8
+    resources:
+        mem='16G',
+        time='12:00:00'
+    output:
+        os.path.join(
+            outdir,
+            "fmriprep",
+            "sourcedata",
+            "freesurfer",
+            "sub-{subid}",
+            "mri",
+            "aseg.mgz"
+        ),
+        os.path.join(
+            outdir,
+            "fmriprep",
+            "sub-{subid}",
+            "func",
+            "sub-{subid}_task-rest_space-fsLR_den-91k_bold.dtseries.nii"
+        )
+    container:
+        config["containers"]["fmriprep"]
+    shell:
+        "rm -rf {params.out_dir}/freesurfer/sub-{wildcards.subid} && "
+        "fmriprep "
+        "{params.bids_dir} {params.out_dir}/fmriprep participant "
+        "--fs-license-file {params.fs_license_dir}/license.txt "
+        "--skip-bids-validation "
+        "--participant_label {wildcards.subid} "
+        "--output-spaces MNI152NLin2009cAsym:res-2 fsLR "
+        "--cifti-output "
+        "--skip-bids-validation "
+        "--nthreads 16 "
+        "--omp-nthreads 16"
 
-# rule fmriprep:
-#     input:
-#         os.path.join(rawdir, "sub-{subid}", "anat", "sub-{subid}_T1w.nii.gz"),
-#         os.path.join(rawdir, "sub-{subid}", "anat", "sub-{subid}_T2w.nii.gz"),
-#         os.path.join(rawdir, "sub-{subid}", "fmap", "sub-{subid}_magnitude1.nii.gz"),
-#         os.path.join(rawdir, "sub-{subid}", "fmap", "sub-{subid}_magnitude2.nii.gz"),
-#         os.path.join(rawdir, "sub-{subid}", "fmap", "sub-{subid}_phasediff.nii.gz"),
-#         os.path.join(
-#             rawdir,
-#             "sub-{subid}",
-#             "func",
-#             "sub-{subid}_task-rest_bold.nii.gz"
-#         )
-#     params:
-#         bids_dir=rawdir,
-#         out_dir=outdir,
-#         fs_license_dir=resourcedir
-#     threads: 8
-#     resources:
-#         mem='16G',
-#         time='12:00:00'
-#     output:
-#         os.path.join(
-#             outdir,
-#             "freesurfer",
-#             "sub-{subid}",
-#             "surf",
-#             "rh.thickness"
-#         ),
-#         os.path.join(
-#             outdir,
-#             "fmriprep",
-#             "sub-{subid}",
-#             "func",
-#             "sub-{subid}_task-rest_space-fsLR_den-91k_bold.dtseries.nii"
-#         )
-#     container:
-#         config["containers"]["fmriprep"]
-#     shell:
-#         "rm -rf {params.out_dir}/freesurfer/sub-{wildcards.subid} && "
-#         "fmriprep "
-#         "{params.bids_dir} {params.out_dir}/fmriprep participant "
-#         "--fs-license-file {params.fs_license_dir}/license.txt "
-#         "--skip-bids-validation "
-#         "--participant_label {wildcards.subid} "
-#         "--output-spaces MNI152NLin2009cAsym:res-2 fsLR "
-#         "--cifti-output "
-#         "--skip-bids-validation "
-#         "--nthreads 16 "
-#         "--omp-nthreads 16 && "
-#         "mv {params.out_dir}/fmriprep/sub-{wildcards.subid}/func/sub-{wildcards.subid}_task-rest_space-MNI152NLin2009cAsym_res-2_desc-preproc_bold.nii.gz {params.out_dir}/fmriprep/sub-{wildcards.subid}/func/sub-{wildcards.subid}_task-rest_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz"
+# Register the FreeSurfer subcortical segmentation into the MNI space and convert it to Nifti
+rule register_subcortical_segmentation:
+    input:
+        os.path.join(
+            outdir,
+            "fmriprep",
+            "sourcedata",
+            "freesurfer",
+            "sub-{subid}",
+            "mri",
+            "aseg.mgz"
+        )
+    params:
+        conversion_dir= os.path.join(
+            outdir,
+            "conversion",
+            "sub-{subid}",
+            "subcortical"
+        ),
+        fs_dir=os.path.join(
+            outdir,
+            "fmriprep",
+            "sourcedata",
+            "freesurfer"
+        ),
+        resource_dir=resourcedir
+    threads: 8
+    resources:
+        mem='32G',
+        time='12:00:00'
+    output:
+        os.path.join(
+            outdir,
+            "conversion",
+            "sub-{subid}",
+            "subcortical",
+            "aseg_space-MNI152NonLin_res-2mm.nii.gz"
+        )
+    container:
+        config["containers"]["freesurfer"]
+    shell:
+        "export FS_LICENSE={params.resource_dir}/license.txt && "
+        "mkdir -p {params.conversion_dir} && "
+        "export SUBJECTS_DIR={params.fs_dir} && "
+        "mri_cvs_register --mov sub-{wildcards.subid} --mni && "
+        "mri_convert {params.fs_dir}/sub-{wildcards.subid}/cvs/final_CVSmorphed_tocvs_avg35_inMNI152_aseg.mgz {output}"
 
-# rule register_subcortical_segmentation:
-#     input:
-#         os.path.join(
-#             outdir,
-#             "fmriprep",
-#             "sourcedata",
-#             "freesurfer",
-#             "sub-{subid}",
-#             "mri",
-#             "aseg.mgz"
-#         )
-#     params:
-#         conversion_dir= os.path.join(
-#             outdir,
-#             "conversion",
-#             "sub-{subid}",
-#             "subcortical"
-#         ),
-#         fs_dir=os.path.join(
-#             outdir,
-#             "fmriprep",
-#             "sourcedata",
-#             "freesurfer"
-#         ),
-#         resource_dir=resourcedir
-#     threads: 8
-#     resources:
-#         mem='32G',
-#         time='12:00:00'
-#     output:
-#         os.path.join(
-#             outdir,
-#             "conversion",
-#             "sub-{subid}",
-#             "subcortical",
-#             "aseg_space-MNI152NonLin_res-2mm.nii.gz"
-#         )
-#     container:
-#         config["containers"]["freesurfer"]
-#     shell:
-#         "export FS_LICENSE={params.resource_dir}/license.txt && "
-#         "mkdir -p {params.conversion_dir} && "
-#         "export SUBJECTS_DIR={params.fs_dir} && "
-#         "mri_cvs_register --mov sub-{wildcards.subid} --mni && "
-#         "mri_convert {params.fs_dir}/sub-{wildcards.subid}/cvs/final_CVSmorphed_tocvs_avg35_inMNI152_aseg.mgz {output}"
-
+# Convert the subcortical segmentation into a label volume, and resample it into the 2mm resolution
 rule prepare_subcortical_segmentation_for_merging:
     input:
         os.path.join(
@@ -203,6 +194,7 @@ rule prepare_subcortical_segmentation_for_merging:
         "ENCLOSING_VOXEL "
         "{output}"
 
+# Convert the FreeSurfer aparc cortical parcellation into the Gifti format
 rule convert_aparc_to_gifti:
     input:
         lh=os.path.join(
@@ -267,6 +259,7 @@ rule convert_aparc_to_gifti:
         "{params.fs_dir}/sub-{wildcards.subid}/surf/rh.midthickness "
         "{output.rh}"
 
+# Resample the cortical parcellation onto the fsLR space
 rule resample_cortical_labels:
     input:
         lh=os.path.join(
@@ -360,6 +353,7 @@ rule resample_cortical_labels:
         "{params.conversion_dir}/rh.midthickness.surf.gii "
         "{params.conversion_dir}/rh.midthickness.32k_fs_LR.surf.gii"
 
+# Create a remap of the right hemisphere label keys so they don't clash with the left hemisphere ones
 rule generate_remap:
     input:
         os.path.join(
@@ -399,6 +393,7 @@ rule generate_remap:
         "-input {params.conversion_dir}/aparc.rh.32k_fs_LR.label.gii "
         "-output {params.conversion_dir}/remap.txt"
 
+# Apply the remap to the right hemisphere keys, and add the hemisphere prefixes to the labels
 rule fix_cortical_labels:
     input:
         os.path.join(
@@ -465,7 +460,7 @@ rule fix_cortical_labels:
         "rh_ "
         "{params.conversion_dir}/rh_seg-aparc_den-32k_fs_LR.label.gii"
     
-
+# Combine the subcortical and cortical atlases into a Cifti atlas
 rule combine_into_cifti_label:
     input:
         rh=os.path.join(
@@ -526,6 +521,7 @@ rule combine_into_cifti_label:
         "-cifti {params.conversion_dir}/cortical/aparc.32k_fs_LR.dlabel.nii "
         "-label-collision SURFACES_FIRST"
 
+# Create additional atlas files required by XCP-D
 rule create_atlas_info:
     input:
         os.path.join(
@@ -569,7 +565,8 @@ rule create_atlas_info:
         "-output {params.out_dir}/atlases/sub-{wildcards.subid}/atlas-DesikanKilliany/atlas-DesikanKilliany_dseg.tsv && "
 
         "cp {params.resource_dir}/dataset_description.json {params.out_dir}/atlases/sub-{wildcards.subid}/atlas-DesikanKilliany/dataset_description.json"
-    
+
+# Apply XCP-D to the fMRIPrep processed data using the Desikan-Killiany atlas we created from FreeSurfer parcellation
 rule xcp_d:
     input:
         os.path.join(
@@ -647,94 +644,3 @@ rule xcp_d:
         "--fs-license-file {params.fs_license_dir}/license.txt "
         "--smoothing 6 "
         "--n_cpus 16"
-
-# rule extract_timeseries:
-#     input:
-#         atlas=os.path.join(
-#             outdir,
-#             "ciftify",
-#             "sub-{subid}",
-#             "MNINonLinear",
-#             "fsaverage_LR32k",
-#             "sub-{subid}.aparc.32k_fs_LR.dlabel.nii"
-#         ),
-#         bold=os.path.join(
-#             outdir,
-#             "ciftify",
-#             "sub-{subid}",
-#             "MNINonLinear/Results/task-rest_desc-preproc/task-rest_desc-preproc_Atlas_s0.dtseries.nii",
-#         ),
-#     params:
-#         resdir=os.path.join(outdir, "wb_command", "sub-{subid}"),
-#         workflow_dir=workflowdir,
-#         cifti_dir=os.path.join(outdir, "ciftify"),
-#     output:
-#         os.path.join(
-#             outdir,
-#             "wb_command",
-#             "sub-{subid}",
-#             "sub-{subid}_task-rest_timeseries.ptseries.nii",
-#         ),
-#     container:
-#         config["containers"]["wb_command"]
-#     shell:
-#         "wb_command -cifti-parcellate "
-#         "{input.bold} "
-#         "{input.atlas) "
-#         "COLUMN "
-#         "{output}"
-
-# rule calculate_static_fc:
-#     input:
-#         os.path.join(
-#             outdir,
-#             "wb_command",
-#             "sub-{subid}",
-#             "sub-{subid}_task-rest_timeseries.ptseries.nii",
-#         ),
-#     params:
-#         workflow_dir=workflowdir,
-#     output:
-#         os.path.join(
-#             outdir,
-#             "wb_command",
-#             "sub-{subid}",
-#             "sub-{subid}_task-rest_boldmap.pconn.nii",
-#         ),
-#     container:
-#         config["containers"]["wb_command"]
-#     shell:
-#         "wb_command -cifti-correlation {input} {output}"
-
-
-# rule calculate_fcd:
-#     input:
-#         os.path.join(
-#             outdir,
-#             "wb_command",
-#             "sub-{subid}",
-#             "sub-{subid}_task-rest_timeseries.ptseries.nii",
-#         ),
-#     params:
-#         outdir=os.path.join(outdir, "python"),
-#         workflow_dir=workflowdir,
-#     output:
-#         os.path.join(outdir, "python", "sub-{subid}", "sub-{subid}_static_FC.csv"),
-#         os.path.join(outdir, "python", "sub-{subid}", "sub-{subid}_FCD.csv"),
-#         os.path.join(
-#             outdir,
-#             "python",
-#             "sub-{subid}",
-#             "sub-{subid}_FCD_histogram_counts.csv",
-#         ),
-#         os.path.join(
-#             outdir,
-#             "python",
-#             "sub-{subid}",
-#             "figs",
-#             "sub-{subid}_FCD_histogram.png",
-#         ),
-#     conda:
-#         "envs/environment.yaml"
-#     shell:
-#         "python {params.workflow_dir}/scripts/fc_analysis.py sub-{wildcards.subid} {input} {params.outdir}"

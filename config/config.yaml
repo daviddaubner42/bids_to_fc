@@ -1,8 +1,13 @@
+# Specify the directories on your systems
+
+# The BIDS directory with data to be processed
 datadir: /home/david-daubner/Desktop/NMDARE/bids
+# The directory with the Snakemake pipeline specification
 rootdir: /home/david-daubner/Desktop/NMDARE/nmdare-processing
 
+# The singularity containers used by the pipeline
 containers:
-  fmriprep: /home/david-daubner/Desktop/NMDARE/nmdare-processing/.snakemake/singularity/fmriprep.sif
-  freesurfer: /home/david-daubner/Desktop/NMDARE/nmdare-processing/.snakemake/singularity/freesurfer.sif
-  xcp_d: /home/david-daubner/Desktop/NMDARE/nmdare-processing/.snakemake/singularity/xcpd.sif
-  wb_command: /home/david-daubner/Desktop/NMDARE/nmdare-processing/.snakemake/singularity/wb_command.sif
+  fmriprep: docker://nipreps/fmriprep:latest
+  freesurfer: docker://freesurfer/freesurfer:7.4.1
+  xcp_d: docker://pennlinc/xcp_d:latest
+  wb_command: docker://vnmd/connectomeworkbench_2.0.1:latest
