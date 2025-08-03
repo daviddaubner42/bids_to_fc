@@ -9,6 +9,7 @@ The input directory must be in the BIDS format and contain the following files:
 - `$DATADIR/sub-$SUBID/fmap/sub-$SUBID_phasediff.nii.gz`
 - `$DATADIR/sub-$SUBID/func/sub-$SUBID_task-rest_bold.nii.gz`
 where $DATADIR is the `datadir` specified in the `config/config.yaml`.
+
 Additionally T2 can be used to make fMRIPrep results more precise, but is not necessary if it is not available. If you do not wish to use T2, please comment it out in the input requirements of the fmriprep rule.
 - `$DATADIR/sub-$SUBID/anat/sub-$SUBID_T2w.nii.gz`
 
