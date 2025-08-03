@@ -2,9 +2,16 @@ import nibabel as nib
 import pandas as pd
 import argparse
 
+"""
+Script that takes a Cifti dlabel.nii file and creates a .tsv info file that satisfies the XCP-D atlas requirements.
+Params:
+    -atlas-file :  Path to the atlas
+    -output     :  Path to the output atlas info .tsv file
+"""
+
 parser = argparse.ArgumentParser(description="Create remap from label file.")
-parser.add_argument("-atlas_file", type=str, help="Path to the label GIFTI file")
-parser.add_argument("-output", type=str, help="Path to the label GIFTI file")
+parser.add_argument("-atlas_file", type=str, help="Path to the atlas")
+parser.add_argument("-output", type=str, help="Path to the output atlas info .tsv file")
 args = parser.parse_args()
 
 atlas = nib.load(args.atlas_file)

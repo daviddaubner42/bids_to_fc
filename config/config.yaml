@@ -1,9 +1,9 @@
 # Specify the directories on your systems
 
 # The BIDS directory with data to be processed
-datadir: /home/david-daubner/Desktop/NMDARE/bids
+datadir: 
 # The directory with the Snakemake pipeline specification
-rootdir: /home/david-daubner/Desktop/NMDARE/nmdare-processing
+rootdir: 
 
 # The singularity containers used by the pipeline
 containers:
