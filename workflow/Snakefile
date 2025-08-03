@@ -585,6 +585,9 @@ rule create_atlas_info:
         "cp {params.resource_dir}/dataset_description.json {params.out_dir}/atlases/sub-{wildcards.subid}/atlas-DesikanKilliany/dataset_description.json"
 
 # Apply XCP-D to the fMRIPrep processed data using the Desikan-Killiany atlas we created from FreeSurfer parcellation
+# To change the preprocessing parameters, such as the smoothing kernel width, confounds to be used for denoising, etc.
+# you can change the command line arguments to XCP-D in the shell command bellow. The usage instructions can be found here:
+# https://xcp-d.readthedocs.io/en/latest/usage.html#command-line-arguments
 rule xcp_d:
     input:
         os.path.join(
